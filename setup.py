@@ -5,5 +5,5 @@ from setuptools import find_packages, setup
 setup(
     name="rightconf",
     packages=find_packages(),
-    requires=["omegaconf"],
+    install_requires=["omegaconf"],
 )

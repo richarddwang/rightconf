@@ -234,7 +234,7 @@ class ConfigurationRunner(ConfigurationRunnerInterface):
         subobject_kwargs: Optional[dict[Type, dict[str, Any]]] = None,
         **object_kwargs,
     ) -> Any:
-        _msg = f"There is not `OBJECT` keyword to specify the class or function path in {OmegaConf.to_yaml(object_config)}"
+        _msg = f"There is not `OBJECT` keyword to specify the class or function path in the following configuration: \n\n {OmegaConf.to_yaml(object_config)}"
         assert "OBJECT" in object_config, _msg
         return self._instantiate_object(
             object_config,
