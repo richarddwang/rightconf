@@ -31,17 +31,16 @@ class ConfigurationRunner(ConfigurationRunnerInterface):
         self.regex_skip = "|".join(skip_logging) if skip_logging else None
         self.parser = Parser()
 
-    @property
     @abstractmethod
     def modules(self) -> list[ModuleType]: ...
 
     @property
     def modules_dict(self) -> dict[str, ModuleType]:
-        return {module.__name__.split(".")[-1]: module for module in self.modules}
+        return {module.__name__.split(".")[-1]: module for module in self.modules()}
 
-    def main(self):
+    def main(self, args: Optional[list[str]] = None) -> Any | list[Any]:
         # Command line interface
-        args, rest_args = self._parse_cli()
+        args, rest_args = self._parse_cli(args)
 
         # Load the configurations from files and CLI
         config = load_configuration(
@@ -56,6 +55,8 @@ class ConfigurationRunner(ConfigurationRunnerInterface):
         )
 
         if args.dry:
+            # TODO: print after realization of all configs and print sweeps using diff
+            # TODO: realize all interpolation
             self._process_object_configuration(config)
             self.postprocess(args, config)
             print(OmegaConf.to_yaml(config))
@@ -79,14 +80,20 @@ class ConfigurationRunner(ConfigurationRunnerInterface):
             log_configs.append(self.create_log_config(_config))
 
         # Run
-        self._run_configs(
+        outputs: list[Any] = self._run_configs(
             args,
             configs,
             log_configs,
             omegaconfcli_strings,
         )
 
-    def _parse_cli(self):
+        # Organize output
+        if not config_sweep:
+            assert len(outputs) == 1
+            return outputs[0]
+        return outputs
+
+    def _parse_cli(self, args: Optional[list[str]] = None):
         parser = ArgumentParser()
         parser.add_argument(
             "-c",
@@ -107,7 +114,7 @@ class ConfigurationRunner(ConfigurationRunnerInterface):
             help="Only print the final configuration for check and exist.",
         )
         self.extend_cli(parser)
-        return parser.parse_known_args()
+        return parser.parse_known_args(args)
 
     def _convert_sweep_to_cli_strings(
         self, sweep: DictConfig, product: bool = True
@@ -182,7 +189,7 @@ class ConfigurationRunner(ConfigurationRunnerInterface):
         configs: list[DictConfig],
         log_configs: list[dict],
         omegaconfcli_strings: list[str],
-    ) -> None:
+    ) -> list[Any]:
         # Realize all arguments in advance
         all_args = [
             (args, config, log_config, omegaconfcli_string)
@@ -200,10 +207,14 @@ class ConfigurationRunner(ConfigurationRunnerInterface):
                 input(_msg)
             mp.set_start_method("spawn")
             with Pool(min(args.max_sweep_workers, len(configs))) as pool:
-                pool.starmap(self._run_config, all_args)
+                outputs = pool.starmap(self._run_config, all_args)
         else:
+            outputs = []
             for args in all_args:
-                self._run_config(*args)
+                output = self._run_config(*args)
+                outputs.append(output)
+
+        return outputs
 
     def _run_config(
         self,
@@ -211,10 +222,11 @@ class ConfigurationRunner(ConfigurationRunnerInterface):
         config: DictConfig,
         log_config: dict,
         omegaconfcli_string: str,
-    ) -> None:
+    ) -> Any:
         if omegaconfcli_string:
             print(f"\nCurrent configuration: {omegaconfcli_string}\n")
-        self.run(args, config, log_config)
+        output = self.run(args, config, log_config)
+        return output
 
     def instantiate_object(
         self,
