@@ -1,12 +1,12 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from argparse import ArgumentParser, Namespace
 from types import ModuleType
-from typing import Any, Type, Optional
+from typing import Any, Optional, Type
 
 from omegaconf import DictConfig
 
 
-class ConfigurationRunnerInterface:
+class ConfigurationRunnerInterface(ABC):
     @property
     @abstractmethod
     def modules(self) -> list[ModuleType]:

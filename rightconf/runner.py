@@ -158,9 +158,8 @@ class ConfigurationRunner(ConfigurationRunnerInterface):
         ## Prohibit exessive arguments to prevent unawared argument name typo.
         for key, value in config.items():
             if key != "OBJECT" and key not in parameters:
-                raise KeyError(
-                    f'"{key}" does not match any arguments for "{str(obj)}": {str(list(parameters.keys()))}'
-                )
+                _msg = f"`{key}` does not match any arguments for {obj}: {list(parameters.keys())}"
+                raise KeyError(_msg)
 
         # Set defaults
         for name, param in parameters.items():
